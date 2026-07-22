@@ -15,7 +15,7 @@ public class EmailGeneratorService {
 
     private final WebClient webClient;
 
-    @Value("${gemini.api.url}")
+    @Value("${gemini.api.url:https://generativelanguage.googleapis.com}")
     private String geminiAPIUrl;
 
     @Value("${gemini.api.key}")
@@ -37,11 +37,16 @@ public class EmailGeneratorService {
                         ))
                 )
         );
+        // for base url
+        String baseUrl = geminiAPIUrl.endsWith("/")
+                ? geminiAPIUrl.substring(0, geminiAPIUrl.length() - 1)
+                : geminiAPIUrl;
 
         String response;
         try {
             // 3. Construct URL with query parameter & call Gemini API
-            String fullUri = geminiAPIUrl+geminiAPIKey;
+            //String fullUri = geminiAPIUrl+geminiAPIKey;
+            String fullUri = baseUrl + "/v1beta/models/gemini-2.5-flash:generateContent?key=" + geminiAPIKey;
 
             response = webClient.post()
                     .uri(fullUri)
