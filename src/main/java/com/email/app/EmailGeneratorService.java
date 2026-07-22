@@ -3,9 +3,11 @@ package com.email.app;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
+import java.util.List;
 import java.util.Map;
 
 @Service
@@ -27,25 +29,37 @@ public class EmailGeneratorService {
         // 1. Build the prompt
         String prompt = buildPrompt(emailRequest);
 
-        // 2. Craft the request payload (Gemini expects "text", not "type")
+        // 2. Craft request payload expected by Gemini API
         Map<String, Object> requestBody = Map.of(
-                "contents", java.util.List.of(
-                        Map.of("parts", java.util.List.of(
+                "contents", List.of(
+                        Map.of("parts", List.of(
                                 Map.of("text", prompt)
                         ))
                 )
         );
 
-        // 3. Execute request and get response string
-        String response = webClient.post()
-                .uri(geminiAPIUrl + geminiAPIKey)
-                .header("Content-Type", "application/json")
-                .bodyValue(requestBody) // Added missing body payload here
-                .retrieve()
-                .bodyToMono(String.class)
-                .block();
+        String response;
+        try {
+            // 3. Construct URL with query parameter & call Gemini API
+            String fullUri = geminiAPIUrl + "/v1beta/models/gemini-1.5-flash:generateContent?key=" + geminiAPIKey;
 
-        // 4. Extract and return the final text
+            response = webClient.post()
+                    .uri(fullUri)
+                    .bodyValue(requestBody)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+
+        } catch (WebClientResponseException e) {
+            System.err.println("Gemini API Error Status: " + e.getStatusCode());
+            System.err.println("Gemini API Response Body: " + e.getResponseBodyAsString());
+            return "Error from Gemini API: " + e.getResponseBodyAsString();
+        } catch (Exception e) {
+            System.err.println("Unexpected Error: " + e.getMessage());
+            return "Internal Error: " + e.getMessage();
+        }
+
+        // 4. Extract and return generated text
         return extractResponseContent(response);
     }
 
@@ -54,7 +68,6 @@ public class EmailGeneratorService {
             ObjectMapper objectMapper = new ObjectMapper();
             JsonNode rootNode = objectMapper.readTree(response);
 
-            // Fixed typo: changed "candidated" to "candidates"
             return rootNode.path("candidates")
                     .path(0)
                     .path("content")
