@@ -41,7 +41,7 @@ public class EmailGeneratorService {
         String response;
         try {
             // 3. Construct URL with query parameter & call Gemini API
-            String fullUri = geminiAPIUrl + "/v1beta/models/gemini-1.5-flash:generateContent?key=" + geminiAPIKey;
+            String fullUri = geminiAPIUrl+geminiAPIKey;
 
             response = webClient.post()
                     .uri(fullUri)
